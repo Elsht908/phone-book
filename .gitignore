@@ -39,3 +39,28 @@
 
 # debug information files
 *.dwo
+# Visual Studio временные файлы
+x64/
+x86/
+Debug/
+Release/
+*.user
+*.aps
+*.pch
+*.vspscc
+*.vssscc
+*.sln
+
+# Скомпилированные файлы
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.log
+
+# Файлы сборки
+build/
+Binaries/
+Intermediate/
+Saved/
+
