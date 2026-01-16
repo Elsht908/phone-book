@@ -2,51 +2,93 @@
 #ifndef CONTACT_H
 #define CONTACT_H
 
-#include <string>
-#include <vector>
-#include <iostream>
+#include <QString>
+#include <QDate>
+#include <QVector>
+#include <QMetaType>
 
 enum class PhoneType {
     HOME,
     WORK,
-    OFFICE,
-    OTHER
+    OFFICE
 };
 
 struct PhoneNumber {
-    std::wstring number;
+    QString number;
     PhoneType type;
 
-    PhoneNumber(const std::wstring& num, PhoneType t = PhoneType::HOME)
+    PhoneNumber() = default;
+    PhoneNumber(const QString& num, PhoneType t = PhoneType::HOME)
         : number(num), type(t) {
+    }
+
+    QString typeToString() const {
+        switch (type) {
+        case PhoneType::HOME: return "home";
+        case PhoneType::WORK: return "work";
+        case PhoneType::OFFICE: return "office";
+        default: return "home";
+        }
+    }
+
+    static PhoneType stringToType(const QString& typeStr) {
+        if (typeStr == "home") return PhoneType::HOME;
+        if (typeStr == "work") return PhoneType::WORK;
+        if (typeStr == "office") return PhoneType::OFFICE;
+        return PhoneType::HOME;
+    }
+
+    bool operator==(const PhoneNumber& other) const {
+        return number == other.number && type == other.type;
     }
 };
 
 class Contact {
 public:
-    std::wstring firstName;
-    std::wstring lastName;
-    std::wstring patronymic;
-    std::wstring address;
-    std::wstring birthDate;
-    std::wstring email;
-    std::vector<PhoneNumber> phones;  
-
     Contact() = default;
-    Contact(const std::wstring& fn, const std::wstring& ln, const std::wstring& p,
-        const std::wstring& addr, const std::wstring& bd, const std::wstring& em,
-        const std::vector<PhoneNumber>& phs);
+    Contact(const QString& fn, const QString& ln, const QString& p,
+        const QString& addr, const QDate& bd, const QString& em,
+        const QVector<PhoneNumber>& phs);
+
+    QString getFirstName() const { return firstName; }
+    void setFirstName(const QString& fn) { firstName = fn; }
+
+    QString getLastName() const { return lastName; }
+    void setLastName(const QString& ln) { lastName = ln; }
+
+    QString getPatronymic() const { return patronymic; }
+    void setPatronymic(const QString& p) { patronymic = p; }
+
+    QString getAddress() const { return address; }
+    void setAddress(const QString& addr) { address = addr; }
+
+    QDate getBirthDate() const { return birthDate; }
+    void setBirthDate(const QDate& bd) { birthDate = bd; }
+
+    QString getEmail() const { return email; }
+    void setEmail(const QString& em) { email = em; }
+
+    QVector<PhoneNumber> getPhones() const { return phones; }
+    void setPhones(const QVector<PhoneNumber>& phs) { phones = phs; }
+    void addPhone(const PhoneNumber& phone) { phones.append(phone); }
+
+    bool isValid() const;
+    QString toString() const;
+    static Contact fromString(const QString& line);
 
     bool operator==(const Contact& other) const;
-    bool operator!=(const Contact& other) const;
+    bool operator!=(const Contact& other) const { return !(*this == other); }
 
-    void print() const;
-    std::wstring toString() const;
-    static Contact fromString(const std::wstring& line);
-
-    bool hasRequiredFields() const;
-    std::wstring phoneTypeToString(PhoneType type) const;
-    PhoneType stringToPhoneType(const std::wstring& typeStr) const;
+private:
+    QString firstName;
+    QString lastName;
+    QString patronymic;
+    QString address;
+    QDate birthDate;
+    QString email;
+    QVector<PhoneNumber> phones;
 };
 
-#endif
+Q_DECLARE_METATYPE(Contact)
+
+#endif 

@@ -1,10 +1,12 @@
 #include "contact.h"
-#include "validator.h"
-#include <sstream>
+#include <QStringList>
+#include <QDebug>
+#include "qtvalidator.h"
 
-Contact::Contact(const std::wstring& fn, const std::wstring& ln, const std::wstring& p,
-    const std::wstring& addr, const std::wstring& bd, const std::wstring& em,
-    const std::vector<PhoneNumber>& phs)
+
+Contact::Contact(const QString& fn, const QString& ln, const QString& p,
+    const QString& addr, const QDate& bd, const QString& em,
+    const QVector<PhoneNumber>& phs)
     : firstName(fn), lastName(ln), patronymic(p), address(addr),
     birthDate(bd), email(em), phones(phs) {
 }
@@ -16,97 +18,85 @@ bool Contact::operator==(const Contact& other) const {
         address == other.address &&
         birthDate == other.birthDate &&
         email == other.email &&
-        phones.size() == other.phones.size();
+        phones == other.phones;
 }
 
-bool Contact::operator!=(const Contact& other) const {
-    return !(*this == other);
-}
+QString Contact::toString() const {
+    QString result = firstName + ";" + lastName + ";" + patronymic + ";" +
+        address + ";" + birthDate.toString(Qt::ISODate) + ";" + email + ";";
 
-void Contact::print() const {
-    std::wcout << L"Имя: " << firstName << L"\n";
-    std::wcout << L"Фамилия: " << lastName << L"\n";
-    std::wcout << L"Отчество: " << patronymic << L"\n";
-    std::wcout << L"Адрес: " << address << L"\n";
-    std::wcout << L"Дата рождения: " << birthDate << L"\n";
-    std::wcout << L"Email: " << email << L"\n";
-    std::wcout << L"Телефоны:\n";
+    QStringList phoneEntries;
     for (const auto& phone : phones) {
-        std::wcout << L"  " << phoneTypeToString(phone.type) << L": " << phone.number << L"\n";
+        phoneEntries.append(phone.number + ":" + phone.typeToString());
     }
-    std::wcout << L"-------------------------\n";
-}
 
-std::wstring Contact::toString() const {
-    std::wstring result = firstName + L";" + lastName + L";" + patronymic + L";" +
-        address + L";" + birthDate + L";" + email + L";";
-
-    for (size_t i = 0; i < phones.size(); ++i) {
-        if (i > 0) result += L",";
-        result += phones[i].number + L":" + phoneTypeToString(phones[i].type);
-    }
+    result += phoneEntries.join(",");
     return result;
 }
 
-Contact Contact::fromString(const std::wstring& line) {
-    Contact c;
-    std::wstringstream ss(line);
-    std::wstring token;
-    std::vector<std::wstring> tokens;
+Contact Contact::fromString(const QString& line) {
+    Contact contact;
+    QStringList tokens = line.split(';', Qt::KeepEmptyParts);
 
-    while (std::getline(ss, token, L';')) {
-        tokens.push_back(token);
-    }
+    if (tokens.size() < 6) return contact;
 
-    if (tokens.size() < 6) return c;
+    contact.setFirstName(QtValidator::normalizeName(tokens[0]));
+    contact.setLastName(QtValidator::normalizeName(tokens[1]));
+    contact.setPatronymic(QtValidator::normalizeName(tokens[2]));
+    contact.setAddress(tokens[3]);
+    contact.setBirthDate(QDate::fromString(tokens[4], Qt::ISODate));
+    contact.setEmail(QtValidator::normalizeEmail(tokens[5]));
 
-    c.firstName = tokens[0];
-    c.lastName = tokens[1];
-    c.patronymic = tokens[2];
-    c.address = tokens[3];
-    c.birthDate = tokens[4];
-    c.email = tokens[5];
-
-    if (tokens.size() > 6 && !tokens[6].empty()) {
-        std::wstringstream phoneStream(tokens[6]);
-        std::wstring phoneEntry;
-        while (std::getline(phoneStream, phoneEntry, L',')) {
-            size_t colonPos = phoneEntry.find(L':');
-            if (colonPos != std::wstring::npos) {
-                std::wstring number = phoneEntry.substr(0, colonPos);
-                std::wstring typeStr = phoneEntry.substr(colonPos + 1);
-                c.phones.push_back(PhoneNumber(number, c.stringToPhoneType(typeStr)));
-            }
-            else {
-              
-                c.phones.push_back(PhoneNumber(phoneEntry));
+    if (tokens.size() > 6 && !tokens[6].isEmpty()) {
+        QStringList phoneTokens = tokens[6].split(',', QString::SkipEmptyParts);
+        for (const auto& phoneEntry : phoneTokens) {
+            QStringList parts = phoneEntry.split(':');
+            if (parts.size() == 2) {
+                contact.addPhone(PhoneNumber(parts[0], PhoneNumber::stringToType(parts[1])));
             }
         }
     }
 
-    return c;
+    return contact;
 }
 
-bool Contact::hasRequiredFields() const {
-  
-    return !firstName.empty() &&
-        !lastName.empty() &&
-        !email.empty() &&
-        !phones.empty();
-}
-
-std::wstring Contact::phoneTypeToString(PhoneType type) const {
-    switch (type) {
-    case PhoneType::HOME: return L"home";
-    case PhoneType::WORK: return L"work";
-    case PhoneType::OFFICE: return L"office";
-    default: return L"other";
+bool Contact::isValid() const {
+    // Проверяем обязательные поля
+    if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty()) {
+        return false;
     }
-}
 
-PhoneType Contact::stringToPhoneType(const std::wstring& typeStr) const {
-    if (typeStr == L"home") return PhoneType::HOME;
-    if (typeStr == L"work") return PhoneType::WORK;
-    if (typeStr == L"office") return PhoneType::OFFICE;
-    return PhoneType::OTHER;
+    // Проверяем email через QtValidator
+    if (!QtValidator::isValidEmail(email)) {
+        return false;
+    }
+
+    // Проверяем имена через QtValidator
+    if (!QtValidator::isValidName(firstName) || !QtValidator::isValidName(lastName)) {
+        return false;
+    }
+
+    // Отчество может быть пустым, но если не пустое - должно быть валидным
+    if (!patronymic.isEmpty() && !QtValidator::isValidName(patronymic)) {
+        return false;
+    }
+
+    // Проверяем дату рождения (с улучшенной валидацией)
+    if (!QtValidator::isValidDate(birthDate)) {
+        return false;
+    }
+
+    // Должен быть хотя бы один телефон
+    if (phones.isEmpty()) {
+        return false;
+    }
+
+    // Проверяем все телефоны
+    for (const PhoneNumber& phone : phones) {
+        if (!QtValidator::isValidPhone(phone.number)) {
+            return false;
+        }
+    }
+
+    return true;
 }

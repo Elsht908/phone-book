@@ -1,0 +1,23 @@
+QT += core gui widgets
+CONFIG += c++17
+TARGET = pb_qt
+TEMPLATE = app
+
+SOURCES += main.cpp \
+           phone_book_qt.cpp \
+           contact.cpp \
+           contactdialog.cpp \
+           filecontactmodel.cpp \
+           qtvalidator.cpp
+
+HEADERS += phone_book_qt.h \
+           contact.h \
+           contactdialog.h \
+           contactmodel.h \
+           filecontactmodel.h \
+           qtvalidator.h
+
+FORMS += contactdialog.ui \
+         phone_book_qt.ui
+
+RESOURCES += phone_book_qt.qrc
